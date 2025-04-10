@@ -234,59 +234,16 @@ class FixedSensorModel(SensorModel):
                 yield h
         
 class RemoteSensingModel(SensorModel):
-    def __init__(self, obsLocs, simulation_minutes=1440, dt=180, num_particles=10, spatial_averaging=50000):
+    def __init__(self, simulation_minutes=1440, dt=180, num_particles=10, spatial_averaging=50000):
         self.simulation_minutes = simulation_minutes
         self.dt = dt
         self.num_particles = num_particles
-        self.spatialAveraging = 100_000
+        # self.spatialAveraging = 100_000
 
         # Bounding box and projection
         self.bounding_box = (140.5, -39, 150, -34)
         self.proj = Proj(proj='utm', zone=56, south=True, ellps='WGS84')
         self.grid_polygons = self._generate_grid_polygons()
-        self.obsLocs = obsLocs
-        
-
-    def getHs(self, model):
-        """
-        Returns an iterator providing indicator matrices for each observation.
-        Ensures each observation integrates to 1 within the grid.
-        """
-        delta, _ = model.getGridStepSize()
-        halfGridTile = np.full(model.N_D, self.spatialAveraging / 2)
-        halfGridTile[0] = 0  # No spatial averaging in time
-    
-        startObs = np.delete(self.obsLocs, 1, axis=1)  # [t_start, x, y]
-        endObs = np.delete(self.obsLocs, 0, axis=1)    # [t_end, x, y]
-    
-        startOfHs = model.getGridCoord(startObs - halfGridTile)
-        endOfHs   = model.getGridCoord(endObs + halfGridTile)
-        endOfHs[endOfHs == startOfHs] += 1  # Ensure min volume is 1 cell
-    
-        # Assert observation bounds lie inside the model domain
-        assert np.all(startObs - halfGridTile >= model.boundary[0]), \
-            "Observation start outside model boundary"
-        assert np.all(endObs + halfGridTile <= model.boundary[1]), \
-            "Observation end outside model boundary"
-        assert np.all(startOfHs >= 0) and np.all(startOfHs <= model.resolution), \
-            "Start grid index out of bounds"
-        assert np.all(endOfHs >= 0) and np.all(endOfHs <= model.resolution), \
-            "End grid index out of bounds"
-        assert np.all(endOfHs > startOfHs), \
-            f"Zero volume detected in observation cells: start={startOfHs}, end={endOfHs}"
-    
-        for start, end, tlength in zip(startOfHs, endOfHs, self.obsLocs[:,1] - self.obsLocs[:,0]):
-            h = np.zeros(model.resolution)
-            if len(start) == 3:
-                h[start[0]:end[0], start[1]:end[1], start[2]:end[2]] = \
-                    1 / ((end[0]-start[0]) * (end[1]-start[1]) * (end[2]-start[2]) * np.prod(delta))
-            elif len(start) == 2:
-                h[start[0]:end[0], start[1]:end[1]] = \
-                    1 / ((end[0]-start[0]) * (end[1]-start[1]) * np.prod(delta))
-            elif len(start) == 1:
-                h[start[0]:end[0]] = 1 / ((end[0]-start[0]) * np.prod(delta))
-            yield h
-
 
     def _generate_grid_polygons(self):
         # Load lat/lon from real NetCDF wind file
@@ -340,4 +297,3 @@ class RemoteSensingModel(SensorModel):
         particles = np.array(particles)  # shape: (obs, Nparticles, 3)
         particles = particles.transpose(1, 0, 2)  # shape: (Nparticles, Nobs, 3)
         return particles
-    
