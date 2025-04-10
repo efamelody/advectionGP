@@ -234,19 +234,18 @@ class FixedSensorModel(SensorModel):
                 yield h
         
 class RemoteSensingModel(SensorModel):
-    def __init__(self, simulation_minutes=1440, dt=180, num_particles=10, spatial_averaging=50000):
-        self.simulation_minutes = simulation_minutes
-        self.dt = dt
+    def __init__(self, num_particles=10, spatial_averaging=50000):
         self.num_particles = num_particles
-        # self.spatialAveraging = 100_000
+        self.spatialAveraging = spatial_averaging
 
-        # Bounding box and projection
+        # Fixed bounding box over Victoria (lon/lat)
         self.bounding_box = (140.5, -39, 150, -34)
         self.proj = Proj(proj='utm', zone=56, south=True, ellps='WGS84')
+
+        # Generate polygons
         self.grid_polygons = self._generate_grid_polygons()
 
     def _generate_grid_polygons(self):
-        # Load lat/lon from real NetCDF wind file
         file_path = r"C:\Users\Nur Izfarwiza\Documents\Dissertation\Wind\MERRA2_400.tavg3_3d_asm_Nv.20191001.nc4"
         dataset = Dataset(file_path, 'r')
         lats = dataset.variables['lat'][:]
@@ -264,36 +263,35 @@ class RemoteSensingModel(SensorModel):
         grid_size = 1.0
         lat_bins = np.arange(self.bounding_box[1], self.bounding_box[3] + grid_size, grid_size)
         lon_bins = np.arange(self.bounding_box[0], self.bounding_box[2] + grid_size, grid_size)
-        self.eastings = eastings
-        self.northings = northings
-        self.lat_bins = lat_bins
-        self.lon_bins = lon_bins
 
         polygons = []
         for i in range(len(lat_bins) - 1):
             for j in range(len(lon_bins) - 1):
                 coords = np.array([
-                    [eastings[i, j], northings[i, j]],
-                    [eastings[i+1, j], northings[i+1, j]],
+                    [eastings[i, j],     northings[i, j]],
+                    [eastings[i+1, j],   northings[i+1, j]],
                     [eastings[i+1, j+1], northings[i+1, j+1]],
-                    [eastings[i, j+1], northings[i, j+1]],
-                    [eastings[i, j], northings[i, j]]
+                    [eastings[i, j+1],   northings[i, j+1]],
+                    [eastings[i, j],     northings[i, j]]
                 ])
-                polygons.append(Polygon(coords))
+                poly = Polygon(coords)
+                polygons.append(poly)
         return polygons
 
-    def genParticles(self, Nparticles=None):
+    def genParticles(self, Nparticles=None, t_start=1260, t_end=1440):
         if Nparticles is None:
             Nparticles = self.num_particles
 
-        particles = []
-        for polygon in self.grid_polygons:
-            pts = pointpats.random.poisson(polygon, size=Nparticles)
-            time_col = np.full((Nparticles, 1), self.simulation_minutes, dtype=np.float64)
-            time_col += np.random.uniform(-self.dt, 0, size=(Nparticles, 1))  # time jitter
-            pts = np.hstack([time_col, pts])
-            particles.append(pts)
+        all_particles = []
 
-        particles = np.array(particles)  # shape: (obs, Nparticles, 3)
-        particles = particles.transpose(1, 0, 2)  # shape: (Nparticles, Nobs, 3)
+        for poly in self.grid_polygons:
+            spatial_pts = pointpats.random.poisson(poly, size=Nparticles)
+            times = np.random.uniform(t_start, t_end, size=(Nparticles, 1)) * 60  # seconds
+            particle_group = np.hstack([times, spatial_pts])
+            all_particles.append(particle_group)
+
+        particles = np.vstack(all_particles)  # shape (Nparticles * Nobs, 3)
+        Nobs = len(self.grid_polygons)
+        particles = particles.reshape(Nobs, Nparticles, 3).transpose(1, 0, 2)  # shape (Nparticles, Nobs, 3)
         return particles
+
