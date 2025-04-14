@@ -58,7 +58,25 @@ Update `config.yaml` with your data folder and file naming scheme.
 
 ### Option 2: Quick Test
 
-Use the included `data/sample_wind.nc4` for a small-scale test.
+## 🌬️ Wind Data Download
+
+This project uses real NASA MERRA-2 wind data (`tavg3_3d_asm_Nv`), which are too large to upload to GitHub directly.
+
+To reproduce the full experiment:
+
+- Download the preprocessed `.nc4` wind files from this Google Drive folder:  
+  🔗 [Download Wind Files]([https://drive.google.com/drive/folders/your-share-link](https://drive.google.com/drive/folders/1yI9CejO4w_3kmZCGl5ZmrccPytsVa132?usp=sharing))
+
+- Place the files in:
+IfaDissertationProject/data/wind/
+
+## ⚠️ Path Warning: Local File Paths in Notebooks
+
+Some Jupyter notebooks in this project may contain hardcoded file paths that were specific to the developer's machine (e.g., paths like `C:\Users\Nur Izfarwiza\Documents\Dissertation\Wind\...`).
+
+🛠️ **If you're running the notebook on your own system**, please make sure to:
+
+- Update any local paths that refer to `.nc4` wind files
 
 ## ⚙️ Configuration
 
