@@ -101,5 +101,3 @@ If using the MERRA-2 dataset:
 ```
 
 
-
-Let me know if you want a version that includes badges (e.g. for license, Python version, etc.) or a minimal version for class submission. I can also help write a `requirements.txt`!
